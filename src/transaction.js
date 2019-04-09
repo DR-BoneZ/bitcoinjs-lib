@@ -8,11 +8,11 @@ const script_1 = require("./script");
 const types = require("./types");
 const typeforce = require('typeforce');
 const varuint = require('varuint-bitcoin');
-function varSliceSize(someScript) {
+function varSliceSize (someScript) {
     const length = someScript.length;
     return varuint.encodingLength(length) + length;
 }
-function vectorSize(someVector) {
+function vectorSize (someVector) {
     const length = someVector.length;
     return (varuint.encodingLength(length) +
         someVector.reduce((sum, witness) => {
@@ -28,46 +28,47 @@ const BLANK_OUTPUT = {
     script: EMPTY_SCRIPT,
     valueBuffer: VALUE_UINT64_MAX,
 };
-function isOutput(out) {
+function isOutput (out) {
     return out.value !== undefined;
 }
 class Transaction {
-    constructor() {
+    constructor () {
         this.version = 1;
         this.locktime = 0;
         this.ins = [];
         this.outs = [];
+        this.dip2payload = null;
     }
-    static fromBuffer(buffer, _NO_STRICT) {
+    static fromBuffer (buffer, _NO_STRICT) {
         let offset = 0;
-        function readSlice(n) {
+        function readSlice (n) {
             offset += n;
             return buffer.slice(offset - n, offset);
         }
-        function readUInt32() {
+        function readUInt32 () {
             const i = buffer.readUInt32LE(offset);
             offset += 4;
             return i;
         }
-        function readInt32() {
+        function readInt32 () {
             const i = buffer.readInt32LE(offset);
             offset += 4;
             return i;
         }
-        function readUInt64() {
+        function readUInt64 () {
             const i = bufferutils.readUInt64LE(buffer, offset);
             offset += 8;
             return i;
         }
-        function readVarInt() {
+        function readVarInt () {
             const vi = varuint.decode(buffer, offset);
             offset += varuint.decode.bytes;
             return vi;
         }
-        function readVarSlice() {
+        function readVarSlice () {
             return readSlice(readVarInt());
         }
-        function readVector() {
+        function readVector () {
             const count = readVarInt();
             const vector = [];
             for (let i = 0; i < count; i++)
@@ -112,14 +113,15 @@ class Transaction {
         tx.locktime = readUInt32();
         if (_NO_STRICT)
             return tx;
-        if (offset !== buffer.length)
-            throw new Error('Transaction has unexpected data');
+        if (offset !== buffer.length) { // Dip2
+            tx.dip2payload = readVarSlice();
+        }
         return tx;
     }
-    static fromHex(hex) {
+    static fromHex (hex) {
         return Transaction.fromBuffer(Buffer.from(hex, 'hex'), false);
     }
-    static isCoinbaseHash(buffer) {
+    static isCoinbaseHash (buffer) {
         typeforce(types.Hash256bit, buffer);
         for (let i = 0; i < 32; ++i) {
             if (buffer[i] !== 0)
@@ -127,10 +129,10 @@ class Transaction {
         }
         return true;
     }
-    isCoinbase() {
+    isCoinbase () {
         return (this.ins.length === 1 && Transaction.isCoinbaseHash(this.ins[0].hash));
     }
-    addInput(hash, index, sequence, scriptSig) {
+    addInput (hash, index, sequence, scriptSig) {
         typeforce(types.tuple(types.Hash256bit, types.UInt32, types.maybe(types.UInt32), types.maybe(types.Buffer)), arguments);
         if (types.Null(sequence)) {
             sequence = Transaction.DEFAULT_SEQUENCE;
@@ -144,7 +146,7 @@ class Transaction {
             witness: EMPTY_WITNESS,
         }) - 1);
     }
-    addOutput(scriptPubKey, value) {
+    addOutput (scriptPubKey, value) {
         typeforce(types.tuple(types.Buffer, types.Satoshi), arguments);
         // Add the output and return the output's index
         return (this.outs.push({
@@ -152,23 +154,23 @@ class Transaction {
             value,
         }) - 1);
     }
-    hasWitnesses() {
+    hasWitnesses () {
         return this.ins.some(x => {
             return x.witness.length !== 0;
         });
     }
-    weight() {
+    weight () {
         const base = this.__byteLength(false);
         const total = this.__byteLength(true);
         return base * 3 + total;
     }
-    virtualSize() {
+    virtualSize () {
         return Math.ceil(this.weight() / 4);
     }
-    byteLength() {
+    byteLength () {
         return this.__byteLength(true);
     }
-    clone() {
+    clone () {
         const newTx = new Transaction();
         newTx.version = this.version;
         newTx.locktime = this.locktime;
@@ -197,7 +199,7 @@ class Transaction {
      * hashType, and then hashes the result.
      * This hash can then be used to sign the provided transaction input.
      */
-    hashForSignature(inIndex, prevOutScript, hashType) {
+    hashForSignature (inIndex, prevOutScript, hashType) {
         typeforce(types.tuple(types.UInt32, types.Buffer, /* types.UInt8 */ types.Number), arguments);
         // https://github.com/bitcoin/bitcoin/blob/master/src/test/sighash_tests.cpp#L29
         if (inIndex >= this.ins.length)
@@ -254,24 +256,24 @@ class Transaction {
         txTmp.__toBuffer(buffer, 0, false);
         return bcrypto.hash256(buffer);
     }
-    hashForWitnessV0(inIndex, prevOutScript, value, hashType) {
+    hashForWitnessV0 (inIndex, prevOutScript, value, hashType) {
         typeforce(types.tuple(types.UInt32, types.Buffer, types.Satoshi, types.UInt32), arguments);
         let tbuffer = Buffer.from([]);
         let toffset = 0;
-        function writeSlice(slice) {
+        function writeSlice (slice) {
             toffset += slice.copy(tbuffer, toffset);
         }
-        function writeUInt32(i) {
+        function writeUInt32 (i) {
             toffset = tbuffer.writeUInt32LE(i, toffset);
         }
-        function writeUInt64(i) {
+        function writeUInt64 (i) {
             toffset = bufferutils.writeUInt64LE(tbuffer, i, toffset);
         }
-        function writeVarInt(i) {
+        function writeVarInt (i) {
             varuint.encode(i, tbuffer, toffset);
             toffset += varuint.encode.bytes;
         }
-        function writeVarSlice(slice) {
+        function writeVarSlice (slice) {
             writeVarInt(slice.length);
             writeSlice(slice);
         }
@@ -335,31 +337,31 @@ class Transaction {
         writeUInt32(hashType);
         return bcrypto.hash256(tbuffer);
     }
-    getHash(forWitness) {
+    getHash (forWitness) {
         // wtxid for coinbase is always 32 bytes of 0x00
         if (forWitness && this.isCoinbase())
             return Buffer.alloc(32, 0);
         return bcrypto.hash256(this.__toBuffer(undefined, undefined, forWitness));
     }
-    getId() {
+    getId () {
         // transaction hash's are displayed in reverse order
         return bufferutils_1.reverseBuffer(this.getHash(false)).toString('hex');
     }
-    toBuffer(buffer, initialOffset) {
+    toBuffer (buffer, initialOffset) {
         return this.__toBuffer(buffer, initialOffset, true);
     }
-    toHex() {
+    toHex () {
         return this.toBuffer(undefined, undefined).toString('hex');
     }
-    setInputScript(index, scriptSig) {
+    setInputScript (index, scriptSig) {
         typeforce(types.tuple(types.Number, types.Buffer), arguments);
         this.ins[index].script = scriptSig;
     }
-    setWitness(index, witness) {
+    setWitness (index, witness) {
         typeforce(types.tuple(types.Number, [types.Buffer]), arguments);
         this.ins[index].witness = witness;
     }
-    __byteLength(_ALLOW_WITNESS) {
+    __byteLength (_ALLOW_WITNESS) {
         const hasWitnesses = _ALLOW_WITNESS && this.hasWitnesses();
         return ((hasWitnesses ? 10 : 8) +
             varuint.encodingLength(this.ins.length) +
@@ -376,34 +378,34 @@ class Transaction {
                 }, 0)
                 : 0));
     }
-    __toBuffer(buffer, initialOffset, _ALLOW_WITNESS) {
+    __toBuffer (buffer, initialOffset, _ALLOW_WITNESS) {
         if (!buffer)
             buffer = Buffer.allocUnsafe(this.__byteLength(_ALLOW_WITNESS));
         let offset = initialOffset || 0;
-        function writeSlice(slice) {
+        function writeSlice (slice) {
             offset += slice.copy(buffer, offset);
         }
-        function writeUInt8(i) {
+        function writeUInt8 (i) {
             offset = buffer.writeUInt8(i, offset);
         }
-        function writeUInt32(i) {
+        function writeUInt32 (i) {
             offset = buffer.writeUInt32LE(i, offset);
         }
-        function writeInt32(i) {
+        function writeInt32 (i) {
             offset = buffer.writeInt32LE(i, offset);
         }
-        function writeUInt64(i) {
+        function writeUInt64 (i) {
             offset = bufferutils.writeUInt64LE(buffer, i, offset);
         }
-        function writeVarInt(i) {
+        function writeVarInt (i) {
             varuint.encode(i, buffer, offset);
             offset += varuint.encode.bytes;
         }
-        function writeVarSlice(slice) {
+        function writeVarSlice (slice) {
             writeVarInt(slice.length);
             writeSlice(slice);
         }
-        function writeVector(vector) {
+        function writeVector (vector) {
             writeVarInt(vector.length);
             vector.forEach(writeVarSlice);
         }
@@ -436,6 +438,9 @@ class Transaction {
             });
         }
         writeUInt32(this.locktime);
+        if (this.dip2payload) {
+            writeVarSlice(this.dip2payload);
+        }
         // avoid slicing unless necessary
         if (initialOffset !== undefined)
             return buffer.slice(initialOffset, offset);
