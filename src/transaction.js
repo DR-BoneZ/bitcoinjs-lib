@@ -1,18 +1,18 @@
-var Buffer = require('safe-buffer').Buffer
-var bcrypto = require('./crypto')
-var bscript = require('./script')
-var bufferutils = require('./bufferutils')
-var opcodes = require('bitcoin-ops')
-var typeforce = require('typeforce')
-var types = require('./types')
-var varuint = require('varuint-bitcoin')
-
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const bufferutils = require("./bufferutils");
+const bufferutils_1 = require("./bufferutils");
+const bcrypto = require("./crypto");
+const bscript = require("./script");
+const script_1 = require("./script");
+const types = require("./types");
+const typeforce = require('typeforce');
+const varuint = require('varuint-bitcoin');
 function varSliceSize (someScript) {
     var length = someScript.length
 
     return varuint.encodingLength(length) + length
 }
-
 function vectorSize (someVector) {
     var length = someVector.length
 
@@ -504,5 +504,11 @@ Transaction.prototype.setWitness = function (index, witness) {
 
     this.ins[index].witness = witness
 }
-
-module.exports = Transaction
+Transaction.DEFAULT_SEQUENCE = 0xffffffff;
+Transaction.SIGHASH_ALL = 0x01;
+Transaction.SIGHASH_NONE = 0x02;
+Transaction.SIGHASH_SINGLE = 0x03;
+Transaction.SIGHASH_ANYONECANPAY = 0x80;
+Transaction.ADVANCED_TRANSACTION_MARKER = 0x00;
+Transaction.ADVANCED_TRANSACTION_FLAG = 0x01;
+exports.Transaction = Transaction;
