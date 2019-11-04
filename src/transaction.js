@@ -246,8 +246,8 @@ Transaction.prototype.clone = function () {
     })
 
     if (this.dip2payload) {
-        newTx.dip2payload = new Buffer();
-        tx.copy(newTx.dip2payload);
+        newTx.dip2payload = new Buffer(this.dip2payload.length);
+        this.dip2payload.copy(newTx.dip2payload);
     } else {
         newTx.dip2payload = null
     }
