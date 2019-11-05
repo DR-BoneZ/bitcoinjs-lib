@@ -215,12 +215,12 @@ Transaction.prototype.__byteLength = function (__allowWitness) {
 
     return (
         (hasWitnesses ? 10 : 8) +
-        varuint.encodingLength(this.ins.length) +
-        varuint.encodingLength(this.outs.length) +
-        this.ins.reduce(function (sum, input) { return sum + 40 + varSliceSize(input.script) }, 0) +
-        this.outs.reduce(function (sum, output) { return sum + 8 + varSliceSize(output.script) }, 0) +
-        (hasWitnesses ? this.ins.reduce(function (sum, input) { return sum + vectorSize(input.witness) }, 0) : 0)
-        + varSliceSize(this.dip2payload || new Buffer(0))
+            varuint.encodingLength(this.ins.length) +
+            varuint.encodingLength(this.outs.length) +
+            this.ins.reduce(function (sum, input) { return sum + 40 + varSliceSize(input.script) }, 0) +
+            this.outs.reduce(function (sum, output) { return sum + 8 + varSliceSize(output.script) }, 0) +
+            (hasWitnesses ? this.ins.reduce(function (sum, input) { return sum + vectorSize(input.witness) }, 0) : 0)
+            + this.dip2payload ? varSliceSize(this.dip2payload) : 0
     )
 }
 
